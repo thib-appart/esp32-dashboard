@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ESP32 Dashboard</title>
+  <title>ESP32 - Température & Humidité</title>
   <style>
+    /* Style général */
     body {
       font-family: 'Segoe UI', sans-serif;
       background: linear-gradient(135deg, #0093E9 0%, #80D0C7 100%);
@@ -13,29 +14,55 @@
       margin: 0;
       padding: 0;
     }
+
     h1 { margin-top: 30px; font-size: 2.2em; }
+
+    /* Cartes */
     .card {
       background: rgba(255,255,255,0.1);
       border-radius: 15px;
       box-shadow: 0 4px 15px rgba(0,0,0,0.2);
       padding: 20px;
       margin: 20px auto;
-      width: 320px;
+      width: 90%;
+      max-width: 350px;
+      cursor: pointer;
     }
+
     .value { font-size: 2em; margin: 10px 0; }
-    canvas { background: rgba(255,255,255,0.2); border-radius: 10px; margin-top: 20px; }
+
+    /* Graphiques */
+    canvas {
+      background: rgba(255,255,255,0.2);
+      border-radius: 10px;
+      margin: 20px auto;
+      width: 90%;
+      max-width: 800px;
+      height: auto;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      h1 { font-size: 1.8em; }
+      .value { font-size: 1.5em; }
+    }
   </style>
 </head>
 <body>
 
-  <h1>🌡 ESP32 Dashboard</h1>
-  <div class="card">
+  <h1>🌡 ESP32 - Température & Humidité</h1>
+
+  <div class="card" id="tempCard">
     <p>Température : <span id="temp" class="value">--</span> °C</p>
+    <p>Dernière mesure : <span id="time" style="font-weight:bold;">--:--</span></p>
+  </div>
+
+  <div class="card" id="humCard">
     <p>Humidité : <span id="hum" class="value">--</span> %</p>
     <p>Dernière mesure : <span id="time" style="font-weight:bold;">--:--</span></p>
   </div>
 
-  <canvas id="chart" width="350" height="200"></canvas>
+  <canvas id="chart" width="400" height="200"></canvas>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
@@ -65,37 +92,37 @@
         scales: {
           x: { ticks: { color: 'white' } },
           y: { beginAtZero: true, ticks: { color: 'white' } }
-        }
+        },
+        responsive: true,
+        maintainAspectRatio: false
       },
       plugins: [ChartDataLabels]
     });
 
-    // --- URL de ton Apps Script ---
     const sheetURL = "https://script.google.com/macros/s/AKfycbxKoOoH_5MR4dBtjszaKRDPqk-KtBRbkNFkrJNwHlFSHO-RUMiVzusZUb5smqRIGgAz/exec";
 
-    let allData = [];    // toutes les mesures
-    let graphData = [];  // valeurs filtrées pour le graphique
+    let allData = [];
+    let graphData = [];
 
     async function getData() {
       try {
         const res = await fetch(sheetURL);
         const json = await res.json();
 
-        allData = json; // toutes les mesures
+        allData = json;
 
-        // Met à jour les cases avec la dernière mesure
         const last = allData[allData.length - 1];
         document.getElementById('temp').textContent = last.temperature.toFixed(1);
         document.getElementById('hum').textContent = last.humidity.toFixed(1);
-        document.getElementById('time').textContent = new Date(last.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        document.getElementById('time').textContent = new Date(last.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
-        // Filtrer toutes les 10 min pour le graphique (si 1 mesure/min)
         graphData = allData.filter((_, index) => index % 10 === 0);
 
-        chart.data.labels = graphData.map(d => new Date(d.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+        chart.data.labels = graphData.map(d => new Date(d.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
         chart.data.datasets[0].data = graphData.map(d => d.temperature);
         chart.data.datasets[1].data = graphData.map(d => d.humidity);
         chart.update();
+
       } catch(e) {
         console.error("Erreur récupération données :", e);
       }
@@ -103,6 +130,14 @@
 
     setInterval(getData, 60000); // toutes les 1 min
     getData();
+
+    document.getElementById('tempCard').addEventListener('click', () => {
+      alert('Graphique détaillé de la température');
+    });
+
+    document.getElementById('humCard').addEventListener('click', () => {
+      alert('Graphique détaillé de l\'humidité');
+    });
   </script>
 
 </body>
