@@ -20,13 +20,20 @@
     color: #222;
   }
 
+  .card-container {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin: 20px 0;
+  }
+
   .card {
     background: white;
     border-radius: 12px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     padding: 15px 20px;
-    margin: 15px auto;
-    max-width: 300px;
+    width: 150px;
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
   }
@@ -56,7 +63,7 @@
 
   canvas {
     width: 100% !important;
-    height: 300px !important;
+    height: 300px !important; /* hauteur fixe */
   }
 
   @media (max-width: 600px) {
@@ -70,14 +77,18 @@
 
 <h1>🌡 Température & Humidité</h1>
 
-<div class="card" id="tempCard">
-  <p>Température : <span id="temp" class="value">--</span> °C</p>
-  <p class="small">Dernière mesure : <span id="time">--:--</span></p>
-</div>
+<div class="card-container">
+  <div class="card" id="tempCard">
+    <p>Température</p>
+    <p><span id="temp" class="value">--</span> °C</p>
+    <p class="small">Dernière mesure : <span id="time">--:--</span></p>
+  </div>
 
-<div class="card" id="humCard">
-  <p>Humidité : <span id="hum" class="value">--</span> %</p>
-  <p class="small">Dernière mesure : <span id="time2">--:--</span></p>
+  <div class="card" id="humCard">
+    <p>Humidité</p>
+    <p><span id="hum" class="value">--</span> %</p>
+    <p class="small">Dernière mesure : <span id="time2">--:--</span></p>
+  </div>
 </div>
 
 <div id="chart-container">
@@ -128,12 +139,15 @@ async function getData() {
     const last = allData[allData.length - 1];
     document.getElementById('temp').textContent = last.temperature.toFixed(1);
     document.getElementById('hum').textContent = last.humidity.toFixed(1);
-    document.getElementById('time').textContent = new Date(last.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    document.getElementById('time2').textContent = document.getElementById('time').textContent;
+    const timeStr = new Date(last.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    document.getElementById('time').textContent = timeStr;
+    document.getElementById('time2').textContent = timeStr;
 
-    // Garder les points toutes les 10 min pour le graphique mais réduire automatiquement si trop nombreux
+    // points toutes les 10 min pour le graphique
     graphData = allData.filter((_, index) => index % 10 === 0);
-    const maxPoints = 20; // max points affichés sur l’écran
+
+    // limiter le nombre de points à 20 pour ne pas agrandir le graphique
+    const maxPoints = 20;
     const step = Math.max(1, Math.floor(graphData.length / maxPoints));
     const displayData = graphData.filter((_, i) => i % step === 0);
 
