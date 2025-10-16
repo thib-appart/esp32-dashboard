@@ -23,19 +23,20 @@
   .card-container {
     display: flex;
     justify-content: center;
-    gap: 15px;
+    gap: 25px;
     flex-wrap: wrap;
-    margin: 20px 0;
+    margin: 25px 0;
   }
 
   .card {
     background: white;
     border-radius: 12px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    padding: 15px 20px;
-    width: 150px;
+    padding: 20px 25px;
+    width: 160px;
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
   }
 
   .card:hover {
@@ -44,8 +45,8 @@
   }
 
   .value {
-    font-size: 1.8em;
-    margin: 8px 0;
+    font-size: 1.9em;
+    margin: 10px 0;
     font-weight: bold;
     color: #0077cc;
   }
@@ -55,21 +56,36 @@
     color: #555;
   }
 
+  /* Mini barre d’indicateur */
+  .bar-container {
+    background: #eee;
+    border-radius: 10px;
+    height: 12px;
+    width: 100%;
+    margin-top: 5px;
+    overflow: hidden;
+  }
+
+  .bar {
+    height: 100%;
+    border-radius: 10px;
+  }
+
   #chart-container {
     width: 90%;
     max-width: 900px;
-    margin: 20px auto;
+    margin: 25px auto;
   }
 
   canvas {
     width: 100% !important;
-    height: 300px !important; /* hauteur fixe */
+    height: 350px !important;
   }
 
   @media (max-width: 600px) {
     h1 { font-size: 1.5em; }
-    .value { font-size: 1.5em; }
-    canvas { height: 250px !important; }
+    .value { font-size: 1.6em; }
+    canvas { height: 300px !important; }
   }
 </style>
 </head>
@@ -81,12 +97,18 @@
   <div class="card" id="tempCard">
     <p>Température</p>
     <p><span id="temp" class="value">--</span> °C</p>
+    <div class="bar-container">
+      <div id="tempBar" class="bar" style="width:0%; background:#ff7f0e;"></div>
+    </div>
     <p class="small">Dernière mesure : <span id="time">--:--</span></p>
   </div>
 
   <div class="card" id="humCard">
     <p>Humidité</p>
     <p><span id="hum" class="value">--</span> %</p>
+    <div class="bar-container">
+      <div id="humBar" class="bar" style="width:0%; background:#1f77b4;"></div>
+    </div>
     <p class="small">Dernière mesure : <span id="time2">--:--</span></p>
   </div>
 </div>
@@ -110,9 +132,15 @@ const chart = new Chart(ctx, {
     ]
   },
   options: {
+    layout: { padding: { top: 20, bottom: 20 } },
     plugins: {
       legend: { labels: { color: '#333' } },
-      datalabels: { color: '#333', align: 'top', font: { weight: 'bold' } },
+      datalabels: { 
+        color: '#333', 
+        align: 'top', 
+        font: { weight: 'bold' },
+        anchor: 'end'
+      },
       tooltip: { enabled: true }
     },
     scales: {
@@ -137,16 +165,24 @@ async function getData() {
     allData = json;
 
     const last = allData[allData.length - 1];
-    document.getElementById('temp').textContent = last.temperature.toFixed(1);
-    document.getElementById('hum').textContent = last.humidity.toFixed(1);
+    const tempVal = last.temperature.toFixed(1);
+    const humVal = last.humidity.toFixed(1);
+
+    document.getElementById('temp').textContent = tempVal;
+    document.getElementById('hum').textContent = humVal;
     const timeStr = new Date(last.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
     document.getElementById('time').textContent = timeStr;
     document.getElementById('time2').textContent = timeStr;
 
+    // Mettre à jour les mini-barres
+    const tempPercent = Math.min(Math.max((tempVal / 40) * 100, 0), 100); // suppose max 40°C
+    const humPercent = Math.min(Math.max(humVal, 0), 100); // max 100%
+    document.getElementById('tempBar').style.width = tempPercent + '%';
+    document.getElementById('humBar').style.width = humPercent + '%';
+
     // points toutes les 10 min pour le graphique
     graphData = allData.filter((_, index) => index % 10 === 0);
 
-    // limiter le nombre de points à 20 pour ne pas agrandir le graphique
     const maxPoints = 20;
     const step = Math.max(1, Math.floor(graphData.length / maxPoints));
     const displayData = graphData.filter((_, i) => i % step === 0);
