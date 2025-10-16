@@ -1,144 +1,155 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ESP32 - Température & Humidité</title>
-  <style>
-    /* Style général */
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #0093E9 0%, #80D0C7 100%);
-      color: white;
-      text-align: center;
-      margin: 0;
-      padding: 0;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Température & Humidité</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #f0f0f0; /* Fond clair */
+    color: #333;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+  }
 
-    h1 { margin-top: 30px; font-size: 2.2em; }
+  h1 {
+    margin-top: 20px;
+    font-size: 2em;
+    color: #222;
+  }
 
-    /* Cartes */
-    .card {
-      background: rgba(255,255,255,0.1);
-      border-radius: 15px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-      padding: 20px;
-      margin: 20px auto;
-      width: 90%;
-      max-width: 350px;
-      cursor: pointer;
-    }
+  .card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    padding: 15px 20px;
+    margin: 15px auto;
+    max-width: 300px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
 
-    .value { font-size: 2em; margin: 10px 0; }
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+  }
 
-    /* Graphiques */
-    canvas {
-      background: rgba(255,255,255,0.2);
-      border-radius: 10px;
-      margin: 20px auto;
-      width: 90%;
-      max-width: 800px;
-      height: auto;
-    }
+  .value {
+    font-size: 1.8em;
+    margin: 8px 0;
+    font-weight: bold;
+    color: #0077cc;
+  }
 
-    /* Responsive */
-    @media (max-width: 600px) {
-      h1 { font-size: 1.8em; }
-      .value { font-size: 1.5em; }
-    }
-  </style>
+  .small {
+    font-size: 0.9em;
+    color: #555;
+  }
+
+  canvas {
+    background: white;
+    border-radius: 10px;
+    margin: 20px auto;
+    max-width: 90%;
+    height: 250px; /* Plus compact */
+  }
+
+  @media (max-width: 600px) {
+    h1 { font-size: 1.5em; }
+    .value { font-size: 1.5em; }
+    canvas { height: 200px; }
+  }
+</style>
 </head>
 <body>
 
-  <h1>🌡 ESP32 - Température & Humidité</h1>
+<h1>🌡 Température & Humidité</h1>
 
-  <div class="card" id="tempCard">
-    <p>Température : <span id="temp" class="value">--</span> °C</p>
-    <p>Dernière mesure : <span id="time" style="font-weight:bold;">--:--</span></p>
-  </div>
+<div class="card" id="tempCard">
+  <p>Température : <span id="temp" class="value">--</span> °C</p>
+  <p class="small">Dernière mesure : <span id="time">--:--</span></p>
+</div>
 
-  <div class="card" id="humCard">
-    <p>Humidité : <span id="hum" class="value">--</span> %</p>
-    <p>Dernière mesure : <span id="time" style="font-weight:bold;">--:--</span></p>
-  </div>
+<div class="card" id="humCard">
+  <p>Humidité : <span id="hum" class="value">--</span> %</p>
+  <p class="small">Dernière mesure : <span id="time2">--:--</span></p>
+</div>
 
-  <canvas id="chart" width="400" height="200"></canvas>
+<canvas id="chart"></canvas>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-  <script>
-    const ctx = document.getElementById('chart').getContext('2d');
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<script>
+const ctx = document.getElementById('chart').getContext('2d');
 
-    const chart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [
-          { label: 'Température (°C)', data: [], borderColor: '#ffcc00', fill: false, tension: 0.3 },
-          { label: 'Humidité (%)', data: [], borderColor: '#00ccff', fill: false, tension: 0.3 }
-        ]
-      },
-      options: {
-        plugins: {
-          legend: { labels: { color: 'white' } },
-          datalabels: {
-            color: 'white',
-            align: 'top',
-            formatter: function(value) { return value.toFixed(1); },
-            font: { weight: 'bold' }
-          },
-          tooltip: { enabled: true }
-        },
-        scales: {
-          x: { ticks: { color: 'white' } },
-          y: { beginAtZero: true, ticks: { color: 'white' } }
-        },
-        responsive: true,
-        maintainAspectRatio: false
-      },
-      plugins: [ChartDataLabels]
-    });
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [
+      { label: 'Température (°C)', data: [], borderColor: '#ff7f0e', fill: false, tension: 0.3 },
+      { label: 'Humidité (%)', data: [], borderColor: '#1f77b4', fill: false, tension: 0.3 }
+    ]
+  },
+  options: {
+    plugins: {
+      legend: { labels: { color: '#333' } },
+      datalabels: { color: '#333', align: 'top', font: { weight: 'bold' } },
+      tooltip: { enabled: true }
+    },
+    scales: {
+      x: { ticks: { color: '#333' } },
+      y: { beginAtZero: true, ticks: { color: '#333' } }
+    },
+    responsive: true,
+    maintainAspectRatio: false
+  },
+  plugins: [ChartDataLabels]
+});
 
-    const sheetURL = "https://script.google.com/macros/s/AKfycbxKoOoH_5MR4dBtjszaKRDPqk-KtBRbkNFkrJNwHlFSHO-RUMiVzusZUb5smqRIGgAz/exec";
+const sheetURL = "https://script.google.com/macros/s/AKfycbxKoOoH_5MR4dBtjszaKRDPqk-KtBRbkNFkrJNwHlFSHO-RUMiVzusZUb5smqRIGgAz/exec";
 
-    let allData = [];
-    let graphData = [];
+let allData = [];
+let graphData = [];
 
-    async function getData() {
-      try {
-        const res = await fetch(sheetURL);
-        const json = await res.json();
+async function getData() {
+  try {
+    const res = await fetch(sheetURL);
+    const json = await res.json();
+    allData = json;
 
-        allData = json;
+    const last = allData[allData.length - 1];
+    document.getElementById('temp').textContent = last.temperature.toFixed(1);
+    document.getElementById('hum').textContent = last.humidity.toFixed(1);
+    document.getElementById('time').textContent = new Date(last.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    document.getElementById('time2').textContent = document.getElementById('time').textContent;
 
-        const last = allData[allData.length - 1];
-        document.getElementById('temp').textContent = last.temperature.toFixed(1);
-        document.getElementById('hum').textContent = last.humidity.toFixed(1);
-        document.getElementById('time').textContent = new Date(last.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    // Garder seulement les points toutes les 10 min pour le graphique
+    graphData = allData.filter((_, index) => index % 10 === 0);
 
-        graphData = allData.filter((_, index) => index % 10 === 0);
+    chart.data.labels = graphData.map(d => new Date(d.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
+    chart.data.datasets[0].data = graphData.map(d => d.temperature);
+    chart.data.datasets[1].data = graphData.map(d => d.humidity);
+    chart.update();
 
-        chart.data.labels = graphData.map(d => new Date(d.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
-        chart.data.datasets[0].data = graphData.map(d => d.temperature);
-        chart.data.datasets[1].data = graphData.map(d => d.humidity);
-        chart.update();
+  } catch(e) {
+    console.error("Erreur récupération données :", e);
+  }
+}
 
-      } catch(e) {
-        console.error("Erreur récupération données :", e);
-      }
-    }
+setInterval(getData, 60000); // 1 min
+getData();
 
-    setInterval(getData, 60000); // toutes les 1 min
-    getData();
-
-    document.getElementById('tempCard').addEventListener('click', () => {
-      alert('Graphique détaillé de la température');
-    });
-
-    document.getElementById('humCard').addEventListener('click', () => {
-      alert('Graphique détaillé de l\'humidité');
-    });
-  </script>
+// Interactivité des cartes
+document.getElementById('tempCard').addEventListener('click', () => {
+  alert('Graphique détaillé de la température');
+});
+document.getElementById('humCard').addEventListener('click', () => {
+  alert('Graphique détaillé de l\'humidité');
+});
+</script>
 
 </body>
 </html>
