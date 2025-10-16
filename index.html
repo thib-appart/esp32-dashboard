@@ -2,183 +2,108 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Température & Humidité - Appartement</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP32 Dashboard</title>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
-      background: #f4f6f8;
-      color: #333;
+      background: linear-gradient(135deg, #0093E9 0%, #80D0C7 100%);
+      color: white;
       text-align: center;
-      padding: 20px;
+      margin: 0;
+      padding: 0;
     }
-    h1 {
-      color: #0078ff;
-    }
-    .cards {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 20px;
-    }
+    h1 { margin-top: 30px; font-size: 2.2em; }
     .card {
-      background: white;
+      background: rgba(255,255,255,0.1);
       border-radius: 15px;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-      width: 220px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
       padding: 20px;
-      cursor: pointer;
-      transition: transform 0.2s ease;
+      margin: 20px auto;
+      width: 320px;
     }
-    .card:hover {
-      transform: scale(1.05);
-    }
-    .emoji {
-      font-size: 2.2em;
-    }
-    .value {
-      font-size: 2em;
-      color: #0078ff;
-    }
-    .label {
-      font-size: 1em;
-      color: #777;
-    }
-    canvas {
-      margin-top: 40px;
-      max-width: 800px;
-      background: white;
-      padding: 20px;
-      border-radius: 15px;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-    }
+    .value { font-size: 2em; margin: 10px 0; }
+    canvas { background: rgba(255,255,255,0.2); border-radius: 10px; margin-top: 20px; }
   </style>
 </head>
 <body>
 
-  <h1>📊 Suivi Température & Humidité - Appartement</h1>
-
-  <div class="cards">
-    <div class="card">
-      <div class="emoji">🌡️</div>
-      <div class="value" id="tempValue">-- °C</div>
-      <div class="label">Température actuelle</div>
-    </div>
-    <div class="card">
-      <div class="emoji">💧</div>
-      <div class="value" id="humValue">-- %</div>
-      <div class="label">Humidité actuelle</div>
-    </div>
+  <h1>🌡 ESP32 Dashboard</h1>
+  <div class="card">
+    <p>Température : <span id="temp" class="value">--</span> °C</p>
+    <p>Humidité : <span id="hum" class="value">--</span> %</p>
+    <p>Dernière mesure : <span id="time" style="font-weight:bold;">--:--</span></p>
   </div>
 
-  <canvas id="chart"></canvas>
+  <canvas id="chart" width="350" height="200"></canvas>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   <script>
+    const ctx = document.getElementById('chart').getContext('2d');
+
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'Température (°C)', data: [], borderColor: '#ffcc00', fill: false, tension: 0.3 },
+          { label: 'Humidité (%)', data: [], borderColor: '#00ccff', fill: false, tension: 0.3 }
+        ]
+      },
+      options: {
+        plugins: {
+          legend: { labels: { color: 'white' } },
+          datalabels: {
+            color: 'white',
+            align: 'top',
+            formatter: function(value) { return value.toFixed(1); },
+            font: { weight: 'bold' }
+          },
+          tooltip: { enabled: true }
+        },
+        scales: {
+          x: { ticks: { color: 'white' } },
+          y: { beginAtZero: true, ticks: { color: 'white' } }
+        }
+      },
+      plugins: [ChartDataLabels]
+    });
+
+    // --- URL de ton Apps Script ---
     const sheetURL = "https://script.google.com/macros/s/AKfycbxKoOoH_5MR4dBtjszaKRDPqk-KtBRbkNFkrJNwHlFSHO-RUMiVzusZUb5smqRIGgAz/exec";
 
-    let chart;
-    let allData = [];
+    let allData = [];    // toutes les mesures
+    let graphData = [];  // valeurs filtrées pour le graphique
 
-    async function fetchData() {
-      const res = await fetch(sheetURL);
-      allData = await res.json();
+    async function getData() {
+      try {
+        const res = await fetch(sheetURL);
+        const json = await res.json();
 
-      // 🕒 On garde uniquement les 7 derniers jours
-      const now = new Date();
-      const last7Days = allData.filter(row => {
-        const date = new Date(row.timestamp);
-        return (now - date) / (1000 * 60 * 60 * 24) <= 7;
-      });
+        allData = json; // toutes les mesures
 
-      // 📉 On met à jour les valeurs affichées
-      const latest = last7Days[last7Days.length - 1];
-      document.getElementById('tempValue').textContent = latest.temperature + " °C";
-      document.getElementById('humValue').textContent = latest.humidity + " %";
+        // Met à jour les cases avec la dernière mesure
+        const last = allData[allData.length - 1];
+        document.getElementById('temp').textContent = last.temperature.toFixed(1);
+        document.getElementById('hum').textContent = last.humidity.toFixed(1);
+        document.getElementById('time').textContent = new Date(last.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
-      // 🧭 On trace le graphique combiné
-      drawChart(last7Days);
+        // Filtrer toutes les 10 min pour le graphique (si 1 mesure/min)
+        graphData = allData.filter((_, index) => index % 10 === 0);
+
+        chart.data.labels = graphData.map(d => new Date(d.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+        chart.data.datasets[0].data = graphData.map(d => d.temperature);
+        chart.data.datasets[1].data = graphData.map(d => d.humidity);
+        chart.update();
+      } catch(e) {
+        console.error("Erreur récupération données :", e);
+      }
     }
 
-    function drawChart(data) {
-      const labels = data.map(r => {
-        const d = new Date(r.timestamp);
-        return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + " " +
-               d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-      });
-      const temp = data.map(r => r.temperature);
-      const hum = data.map(r => r.humidity);
-
-      if (chart) chart.destroy();
-
-      chart = new Chart(document.getElementById('chart'), {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [
-            {
-              label: 'Température (°C)',
-              data: temp,
-              borderColor: 'red',
-              backgroundColor: 'rgba(255, 99, 132, 0.2)',
-              yAxisID: 'y',
-              tension: 0.3
-            },
-            {
-              label: 'Humidité (%)',
-              data: hum,
-              borderColor: 'blue',
-              backgroundColor: 'rgba(54, 162, 235, 0.2)',
-              yAxisID: 'y1',
-              tension: 0.3
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          interaction: {
-            mode: 'index',
-            intersect: false,
-          },
-          stacked: false,
-          plugins: {
-            title: {
-              display: true,
-              text: 'Évolution Température & Humidité sur 7 jours'
-            }
-          },
-          scales: {
-            y: {
-              type: 'linear',
-              display: true,
-              position: 'left',
-              title: {
-                display: true,
-                text: 'Température (°C)'
-              }
-            },
-            y1: {
-              type: 'linear',
-              display: true,
-              position: 'right',
-              grid: {
-                drawOnChartArea: false,
-              },
-              title: {
-                display: true,
-                text: 'Humidité (%)'
-              }
-            }
-          }
-        }
-      });
-    }
-
-    fetchData();
-    setInterval(fetchData, 60000);
+    setInterval(getData, 60000); // toutes les 1 min
+    getData();
   </script>
 
 </body>
 </html>
-
-
-
